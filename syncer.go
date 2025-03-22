@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -25,7 +26,7 @@ func main() {
     log.Fatalf("Unable to read client secret file: %v", err)
   }
 
-  config, err := google.ConfigFromJSON(secret, drive.DriveMetadataReadonlyScope)
+  config, err := google.ConfigFromJSON(secret, drive.DriveScope)
   if err != nil {
     log.Fatalf("Unable to parse client secret file to config: %v", err)
   }
@@ -36,26 +37,61 @@ func main() {
     log.Fatalf("Unable to retrieve Drive client: %v", err)
   }
 
-  // Have google drive server
-  // Do something with google drive
+  // TODO: get this from config 
+  filename := "MainPasswords.kdbx"
 
-  // TODO: get id from file name
-
-  r, err := srv.Files.List().PageSize(10).Fields("nextPageToken, files(id, name)").Do()
+  r, err := srv.Files.List().Fields("nextPageToken, files(id, name)").Do()
   if err != nil {
     log.Fatalf("Unable to retrieve files: %v", err)
   }
 
   // Handle google drive
-
-  fmt.Println("Files:")
+  var id string
   if len(r.Files) == 0 {
     fmt.Println("No files found.")
+    os.Exit(1)
   } else {
-    for _, i := range r.Files {
-      fmt.Printf("%s (%s)\n", i.Name, i.Id)
+    for _, file := range r.Files {
+      if (file.Name == filename) {
+        id = file.Id
+        fmt.Printf("Found %v\n", file.Name)
+        break
+      }
     }
   }
+
+  res, err := srv.Files.Get(id).Download()
+  if err != nil {
+    log.Fatalf("Unable to download the file")
+    fmt.Printf("%v\n", err)
+  }
+  defer res.Body.Close()
+
+  destFile, err := os.OpenFile("./test/MainPasswords.kdbx", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+  buffer := make([]byte, 32 * 1024)
+  pos := 0
+  for {
+    read, err := res.Body.Read(buffer)
+
+    if read > 0 {
+      written, err := destFile.WriteAt(buffer, int64(pos))
+      if err != nil {
+        log.Fatalf("Unable to write downloaded file to local file")
+        break
+      }
+      pos += written
+    }
+
+    if err != nil {
+      if err == io.EOF {
+        break
+      }
+
+      log.Fatalf("Problem with downloading file")
+      break
+    }
+  }
+
 }
 
 func getClient(config *oauth2.Config) *http.Client {
@@ -72,7 +108,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
   authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
   exec.Command("xdg-open", authURL).Start()
 
-  code, err := getAuthoricationcodeFromRedirect()
+  code, err := getAuthorizationcodeFromRedirect()
   if err != nil {
     log.Fatalf("Unable to get authorization code from redirect")
   }
@@ -85,7 +121,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
   return tok
 }
 
-func getAuthoricationcodeFromRedirect() (string, error) {
+func getAuthorizationcodeFromRedirect() (string, error) {
   listener, err := net.Listen("tcp", "127.0.0.1:3333")
   if err != nil {
     return "", err
