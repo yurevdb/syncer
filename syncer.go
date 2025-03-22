@@ -21,7 +21,7 @@ import (
 
 func main() {
   ctx := context.Background()
-  secret, err := os.ReadFile("client_secret.json")
+  secret, err := os.ReadFile("secret.json")
   if err != nil {
     log.Fatalf("Unable to read client secret file: %v", err)
   }
