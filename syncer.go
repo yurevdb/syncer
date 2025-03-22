@@ -53,6 +53,8 @@ func main() {
   } else {
     for _, file := range r.Files {
       if (file.Name == filename) {
+        // TODO: use this to keep track of download needs
+        //file.ModifiedTime
         id = file.Id
         fmt.Printf("Found %v\n", file.Name)
         break
@@ -91,7 +93,6 @@ func main() {
       break
     }
   }
-
 }
 
 func getClient(config *oauth2.Config) *http.Client {
