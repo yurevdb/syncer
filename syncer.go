@@ -1,17 +1,21 @@
 package main
 
 import (
-  "context"
-  "encoding/json"
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
-  "log"
-  "net/http"
-  "os"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
 
-  "golang.org/x/oauth2"
-  "golang.org/x/oauth2/google"
-  "google.golang.org/api/drive/v3"
-  "google.golang.org/api/option"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/option"
 )
 
 func main() {
@@ -34,6 +38,8 @@ func main() {
 
   // Have google drive server
   // Do something with google drive
+
+  // TODO: get id from file name
 
   r, err := srv.Files.List().PageSize(10).Fields("nextPageToken, files(id, name)").Do()
   if err != nil {
@@ -64,14 +70,14 @@ func getClient(config *oauth2.Config) *http.Client {
 
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
   authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-  fmt.Printf("Go to the following link in your browser then type the authorization code: \n%v\n", authURL)
+  exec.Command("xdg-open", authURL).Start()
 
-  var authCode string
-  if _, err := fmt.Scan(&authCode); err != nil {
-    log.Fatalf("Unable to read authorization code %v", err)
+  code, err := getAuthoricationcodeFromRedirect()
+  if err != nil {
+    log.Fatalf("Unable to get authorization code from redirect")
   }
 
-  tok, err := config.Exchange(context.TODO(), authCode)
+  tok, err := config.Exchange(context.TODO(), code)
   if err != nil {
     log.Fatalf("Uable to retrieve token from web %v", err)
   }
@@ -79,23 +85,65 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
   return tok
 }
 
-func tokenFromFile(file string) (*oauth2.Token, error) {
-  f, err := os.Open(file)
+func getAuthoricationcodeFromRedirect() (string, error) {
+  listener, err := net.Listen("tcp", "127.0.0.1:3333")
+  if err != nil {
+    return "", err
+  }
+  defer listener.Close()
+
+  con, err := listener.Accept()
+  if err != nil {
+    log.Fatalf("Failed to listen for the redirect url")
+    return "", err
+  }
+  defer con.Close()
+
+  tmp := make([]byte, 1024)
+  _, err = con.Read(tmp)
+  if err != nil {
+    return "", err
+  }
+
+  // Sanitize data, don´t know if needed
+  var data []byte
+  for i, v := range tmp  {
+    if (v == 0) {
+      data = tmp[0:i]
+      break
+    }
+  }
+
+  reader := bufio.NewReader(bytes.NewReader(data))
+  req, err := http.ReadRequest(reader)
+  if err != nil {
+    return "", err
+  }
+  defer req.Body.Close()
+  code := req.URL.Query().Get("code")
+
+  con.Write([]byte("Succes\r\nYou can close this browser window"))
+
+  return code, nil
+}
+
+func tokenFromFile(path string) (*oauth2.Token, error) {
+  file, err := os.Open(path)
   if err != nil {
     return nil, err
   }
-  defer f.Close()
+  defer file.Close()
   tok := &oauth2.Token{}
-  err = json.NewDecoder(f).Decode(tok)
+  err = json.NewDecoder(file).Decode(tok)
   return tok, err
 }
 
 func saveToken(path string, token *oauth2.Token) {
   fmt.Printf("Saving credential file to: %s\n", path)
-  f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+  file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
   if err != nil {
     log.Fatalf("Unable to cache oauth toke: %v", err)
   }
-  defer f.Close() 
-  json.NewEncoder(f).Encode(token)
+  defer file.Close() 
+  json.NewEncoder(file).Encode(token)
 }
