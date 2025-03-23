@@ -7,8 +7,8 @@ import (
 )
 
 const (
-  db = "home/yure/.config/syncer/syncer.db"
-  dbDir = "home/yure.config/syncer/"
+  db = "/home/yure/.config/syncer/syncer.db"
+  dbDir = "/home/yure/.config/syncer/"
 )
 
 type Status int
@@ -84,7 +84,7 @@ func createTables(db *sql.DB) error {
 }
 
 func ensureDatabasePathExists() error {
-  err := os.MkdirAll(dbDir, os.ModeDir)
+  err := os.MkdirAll(dbDir, 0777)
   if err != nil {
     return err
   }
