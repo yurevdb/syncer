@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"syncer/internal/config"
@@ -52,8 +54,16 @@ func handleCommand(command string, args ...string) {
 }
 
 func handleStatus() {
-  // TODO: check if daemon is running
-  fmt.Println("Syncer has \033[0;31mstopped\033[0;37m")
+  ids, err := findPid("syncer-daemon")
+  if err != nil {
+    fmt.Println("Unable to check if the daemon is running")
+  }
+  if len(ids) > 0 {
+    fmt.Println("Syncer is \033[0;32mrunning\033[0;37m")
+  } else {
+    fmt.Println("Syncer has \033[0;31mstopped\033[0;37m")
+  }
+
   fmt.Println()
   files, err := config.GetFiles()
   if err != nil {
@@ -70,6 +80,37 @@ func handleStatus() {
     }
   }
   fmt.Println()
+}
+
+func findPid(name string) ([]int, error) {
+  ids := make([]int, 0)
+
+  procs, err := os.ReadDir("/proc")
+  if err != nil {
+    return nil, err
+  }
+
+  for _, proc := range procs {
+    pid, err := strconv.Atoi(proc.Name())
+    if err != nil {
+      continue
+    }
+
+    binPath := filepath.Join("/proc", proc.Name(), "exe")
+
+    link, err := os.Readlink(binPath)
+    if err != nil {
+      continue
+    }
+
+    filename := filepath.Base(link)
+
+    if strings.EqualFold(filename, name) {
+      ids = append(ids, pid)
+    }
+  }
+
+  return ids, nil
 }
 
 func handleLs() {
