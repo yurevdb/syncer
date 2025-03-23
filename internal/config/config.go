@@ -64,7 +64,7 @@ func GetFiles() ([]File, error) {
   ff := File{}
   ff.RemoteName = "MainPasswords.kdbx"
   ff.LocalPath = "~/google-drive/MainPasswords.kdbx"
-  ff.Status = Synced
+  ff.Status = Error
   files = append(files, ff)
 
   return files, nil

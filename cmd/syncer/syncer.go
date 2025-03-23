@@ -33,9 +33,11 @@ func handleCommand(command string, args ...string) {
   switch strings.ToLower(command) {
     case "auth":
     case "status":
+      handleStatus()
     case "start":
     case "stop":
     case "ls":
+      handleLs()
     case "add":
     case "rm":
     case "help":
@@ -47,6 +49,40 @@ func handleCommand(command string, args ...string) {
     default:
       printGeneralHelp()
   }
+}
+
+func handleStatus() {
+  // TODO: check if daemon is running
+  fmt.Println("Syncer has \033[0;31mstopped\033[0;37m")
+  fmt.Println()
+  files, err := config.GetFiles()
+  if err != nil {
+    fmt.Println("Unable to list files")
+  }
+  for _, f := range files{
+    switch f.Status {
+      case config.Error:
+        fmt.Printf("%v: \033[0;31m%v\033[0;37m\n", f.LocalPath, f.Status)
+      case config.Synced:
+        fmt.Printf("%v: \033[0;32m%v\033[0;37m\n", f.LocalPath, f.Status)
+      default:
+        fmt.Printf("%v: Unknown\n", f.LocalPath)
+    }
+  }
+  fmt.Println()
+}
+
+func handleLs() {
+  fmt.Println("Files being synced")
+  fmt.Println()
+  files, err := config.GetFiles()
+  if err != nil {
+    fmt.Println("Unable to list files")
+  }
+  for _, f := range files{
+    fmt.Printf("%v\n", f.RemoteName)
+  }
+  fmt.Println()
 }
 
 func printGeneralHelp() {
