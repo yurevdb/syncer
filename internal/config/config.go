@@ -1,9 +1,11 @@
 package config
 
 import (
-  "database/sql"
-  _ "os"
-  _ "github.com/mattn/go-sqlite3"
+	"database/sql"
+	"os"
+	"path/filepath"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -84,10 +86,11 @@ func createTables(db *sql.DB) error {
 }
 
 func ensureDatabasePathExists() error {
-  //err := os.MkdirAll(dbDir, 0777)
-  //if err != nil {
-  //  return err
-  //}
+  p, _ := filepath.Abs(dbDir)
+  err := os.MkdirAll(p, os.ModeDir)
+  if err != nil {
+    return err
+  }
 
   return nil
 }
