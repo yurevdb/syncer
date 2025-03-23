@@ -2,7 +2,7 @@ package config
 
 import (
   "database/sql"
-  "os"
+  _ "os"
   _ "github.com/mattn/go-sqlite3"
 )
 
@@ -60,8 +60,8 @@ func GetFiles() ([]File, error) {
   files = append(files, f)
 
   ff := File{}
-  ff.RemoteName = "Test"
-  ff.LocalPath = "~/google-drive/Test"
+  ff.RemoteName = "MainPasswords.kdbx"
+  ff.LocalPath = "~/google-drive/MainPasswords.kdbx"
   ff.Status = Synced
   files = append(files, ff)
 
@@ -84,10 +84,10 @@ func createTables(db *sql.DB) error {
 }
 
 func ensureDatabasePathExists() error {
-  err := os.MkdirAll(dbDir, 0777)
-  if err != nil {
-    return err
-  }
+  //err := os.MkdirAll(dbDir, 0777)
+  //if err != nil {
+  //  return err
+  //}
 
   return nil
 }
