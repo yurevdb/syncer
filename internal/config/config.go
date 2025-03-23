@@ -55,26 +55,80 @@ func Init() error {
 func GetFiles() ([]File, error) {
   files := make([]File, 0)
 
-  f := File{}
-  f.RemoteName = "Test"
-  f.LocalPath = "~/google-drive/Test"
-  f.Status = Synced
-  files = append(files, f)
+  db, err := sql.Open("sqlite3", db)
+  if err != nil {
+    return nil, err
+  }
+  defer db.Close()
 
-  ff := File{}
-  ff.RemoteName = "MainPasswords.kdbx"
-  ff.LocalPath = "~/google-drive/MainPasswords.kdbx"
-  ff.Status = Error
-  files = append(files, ff)
+  rows, err := db.Query("SELECT remotename, localpath, status FROM files")
+  if err != nil {
+    return nil, err
+  }
+  defer rows.Close()
+  for rows.Next() {
+    var remotename string
+    var localpath string
+    var status Status
+    err = rows.Scan(&remotename, &localpath, &status)
+    if err != nil {
+      continue
+    }
+    f := File{}
+    f.RemoteName = remotename
+    f.LocalPath = localpath
+    f.Status = status
+    files = append(files, f)
+  }
 
   return files, nil
+}
+
+func AddFile(file File) error {
+  db, err := sql.Open("sqlite3", db)
+  if err != nil {
+    return err
+  }
+  defer db.Close()
+
+  stmt, err := db.Prepare("INSERT INTO files(remotename, localpath, status) VALUES (?, ?, ?)")
+  if err != nil {
+    return err
+  }
+  defer stmt.Close()
+  _, err = stmt.Exec(file.RemoteName, file.LocalPath, Error)
+  if err != nil {
+    return err
+  }
+
+  return nil
+}
+
+func RemoveFile(remoteName string) error {
+  db, err := sql.Open("sqlite3", db)
+  if err != nil {
+    return err
+  }
+  defer db.Close()
+
+  stmt, err := db.Prepare("DELETE FROM files WHERE remotename = ?")
+  if err != nil {
+    return err
+  }
+  defer stmt.Close()
+  _, err = stmt.Exec(remoteName)
+  if err != nil {
+    return err
+  }
+
+  return nil
 }
 
 func createTables(db *sql.DB) error {
   query := `CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            remotename TEXT,
-            localpath TEXT,
+            remotename TEXT UNIQUE,
+            localpath TEXT UNIQUE,
             status INTEGER)`
 
   _, err := db.Exec(query)

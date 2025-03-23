@@ -41,7 +41,9 @@ func handleCommand(command string, args ...string) {
     case "ls":
       handleLs()
     case "add":
+      handleAdd(args)
     case "rm":
+      handleRm(args)
     case "help":
       if len(args) > 0 {
         printCommandHelp(args[0])
@@ -72,11 +74,11 @@ func handleStatus() {
   for _, f := range files{
     switch f.Status {
       case config.Error:
-        fmt.Printf("%v: \033[0;31m%v\033[0;37m\n", f.LocalPath, f.Status)
+        fmt.Printf("%v: \033[0;31m%v\033[0;37m\n", f.RemoteName, f.Status)
       case config.Synced:
-        fmt.Printf("%v: \033[0;32m%v\033[0;37m\n", f.LocalPath, f.Status)
+        fmt.Printf("%v: \033[0;32m%v\033[0;37m\n", f.RemoteName, f.Status)
       default:
-        fmt.Printf("%v: Unknown\n", f.LocalPath)
+        fmt.Printf("%v: Unknown\n", f.RemoteName)
     }
   }
   fmt.Println()
@@ -126,6 +128,39 @@ func handleLs() {
   fmt.Println()
 }
 
+func handleAdd(args []string) {
+  if len(args) < 2 {
+    fmt.Println("Arguments given are not compatible")
+    fmt.Println("Use \"syncer help add\" to see what arguments to use")
+    return
+  }
+  remote := args[0]
+  local := args[1]
+
+  f := config.File{}
+  f.RemoteName = remote
+  f.LocalPath = local
+
+  err := config.AddFile(f)
+  if err != nil {
+    fmt.Println("Unable to add file")
+  }
+}
+
+func handleRm(args []string) {
+  if len(args) < 1 {
+    fmt.Println("Arguments given are not compatible")
+    fmt.Println("Use \"syncer help rm\" to see what arguments to use")
+    return
+  }
+  name := args[0]
+
+  err := config.RemoveFile(name)
+  if err != nil {
+    fmt.Println("Unable to remove file")
+  }
+}
+
 func printGeneralHelp() {
   fmt.Println("Syncer is a cloud file system sync tool to keep remote and local files synced")
   fmt.Println()
@@ -162,8 +197,18 @@ func printCommandHelp(command string) {
       fmt.Println("Prints the files being synced")
     case "add":
       fmt.Println("Adds the given file to be synced")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer add [remote name] [local path]")
+      fmt.Println()
     case "rm":
       fmt.Println("Removes the given file from syncing")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer rm [remote name]")
+      fmt.Println()
     case "help":
       fmt.Println("Prints the help")
     default:
