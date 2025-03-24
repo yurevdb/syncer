@@ -2,15 +2,17 @@ package config
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
-  db = "~/.config/syncer/syncer.db"
-  dbDir = "~/.config/syncer/"
+  db = "/.config/syncer/syncer.db"
+  dbDir = "/.config/syncer/"
 )
 
 type Status int
@@ -152,8 +154,16 @@ func createTables(db *sql.DB) error {
 }
 
 func ensureDatabasePathExists() error {
-  p, _ := filepath.Abs(dbDir)
-  err := os.MkdirAll(p, os.ModeDir)
+  u, err := user.Current()
+  if err != nil {
+    return err
+  }
+
+  p, _ := filepath.Abs(u.HomeDir +  dbDir)
+
+  fmt.Printf("path to db: %v\n", p)
+
+  err = os.MkdirAll(p, os.ModeDir)
   if err != nil {
     return err
   }
