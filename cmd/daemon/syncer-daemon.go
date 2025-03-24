@@ -1,22 +1,20 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
-	"os/exec"
+	"path/filepath"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
+  "syncer/internal/config"
 )
 
 func main() {
@@ -30,7 +28,10 @@ func main() {
   if err != nil {
     log.Fatalf("Unable to parse client secret file to config: %v", err)
   }
-  client := getClient(config)
+  client, err := getClient(config)
+  if err != nil {
+    log.Fatalf("Unable to parse client secret file to config: %v", err)
+  }
 
   srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
   if err != nil {
@@ -95,92 +96,21 @@ func main() {
   }
 }
 
-func getClient(config *oauth2.Config) *http.Client {
-  tokFile := "token.json"
-  tok, err := tokenFromFile(tokFile)
+func getClient(c *oauth2.Config) (*http.Client, error) {
+  configPath, err := config.GetConfigPath()
   if err != nil {
-    tok = getTokenFromWeb(config)
-    saveToken(tokFile, tok)
-  }
-  return config.Client(context.Background(), tok)
-}
-
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-  authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-  exec.Command("xdg-open", authURL).Start()
-
-  code, err := getAuthorizationcodeFromRedirect()
-  if err != nil {
-    log.Fatalf("Unable to get authorization code from redirect")
+    return nil, err
   }
 
-  tok, err := config.Exchange(context.TODO(), code)
-  if err != nil {
-    log.Fatalf("Uable to retrieve token from web %v", err)
-  }
+  tokFile := filepath.Join(configPath, "token.json")
 
-  return tok
-}
-
-func getAuthorizationcodeFromRedirect() (string, error) {
-  listener, err := net.Listen("tcp", "127.0.0.1:3333")
-  if err != nil {
-    return "", err
-  }
-  defer listener.Close()
-
-  con, err := listener.Accept()
-  if err != nil {
-    log.Fatalf("Failed to listen for the redirect url")
-    return "", err
-  }
-  defer con.Close()
-
-  tmp := make([]byte, 1024)
-  _, err = con.Read(tmp)
-  if err != nil {
-    return "", err
-  }
-
-  // Sanitize data, don´t know if needed
-  var data []byte
-  for i, v := range tmp  {
-    if (v == 0) {
-      data = tmp[0:i]
-      break
-    }
-  }
-
-  reader := bufio.NewReader(bytes.NewReader(data))
-  req, err := http.ReadRequest(reader)
-  if err != nil {
-    return "", err
-  }
-  defer req.Body.Close()
-  code := req.URL.Query().Get("code")
-
-  con.Write([]byte("Succes\r\nYou can close this browser window"))
-
-  return code, nil
-}
-
-func tokenFromFile(path string) (*oauth2.Token, error) {
-  file, err := os.Open(path)
+  file, err := os.Open(tokFile)
   if err != nil {
     return nil, err
   }
   defer file.Close()
   tok := &oauth2.Token{}
-  err = json.NewDecoder(file).Decode(tok)
-  return tok, err
-}
+  _ = json.NewDecoder(file).Decode(tok)
 
-func saveToken(path string, token *oauth2.Token) {
-  fmt.Printf("Saving credential file to: %s\n", path)
-  file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-  if err != nil {
-    log.Fatalf("Unable to cache oauth toke: %v", err)
-  }
-  defer file.Close() 
-  json.NewEncoder(file).Encode(token)
+  return c.Client(context.Background(), tok), nil
 }

@@ -162,6 +162,17 @@ func Authenticate(vendor Vendor) error {
   return nil
 }
 
+func GetConfigPath() (string, error) {
+  u, err := user.Current()
+  if err != nil {
+    return "", err
+  }
+
+  p, _ := filepath.Abs(filepath.Join(u.HomeDir, configPath))
+
+  return p, nil
+}
+
 func createTables(db *sql.DB) error {
   query := `CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
