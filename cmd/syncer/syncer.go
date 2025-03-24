@@ -208,14 +208,29 @@ func printCommandHelp(command string) {
   switch strings.ToLower(command) {
     case "auth":
       fmt.Println("Authenticates for syncing to the cloud file management")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer auth")
+      fmt.Println()
     case "status":
       fmt.Println("Prints the current status of the daemon and files synced")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer status")
+      fmt.Println()
     case "start":
       fmt.Println("Starts the syncer daemon")
     case "stop":
       fmt.Println("Stops the syncer daemon")
     case "ls":
       fmt.Println("Prints the files being synced")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer ls")
+      fmt.Println()
     case "add":
       fmt.Println("Adds the given file to be synced")
       fmt.Println()
