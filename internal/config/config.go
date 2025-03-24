@@ -1,17 +1,27 @@
 package config
 
 import (
+	"bufio"
+	"bytes"
+	"context"
 	"database/sql"
-	_ "fmt"
+	"encoding/json"
+	"fmt"
+	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/drive/v2"
 )
 
 const (
-  dbDir = "/.config/syncer/"
+  configPath = "/.config/syncer/"
 )
 var db string
 
@@ -137,6 +147,21 @@ func RemoveFile(remoteName string) error {
   return nil
 }
 
+func Authenticate(vendor Vendor) error {
+  // TODO: add check for authentication needs
+  switch vendor {
+    case GoogleDrive:
+      err := authenticateGoogleDrive()
+      if err != nil {
+        return err
+      }
+    default:
+      fmt.Printf("Vendor %v not supported\n", vendor)
+  }
+
+  return nil
+}
+
 func createTables(db *sql.DB) error {
   query := `CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,13 +184,114 @@ func ensureDatabasePathExists() error {
     return err
   }
 
-  p, _ := filepath.Abs(u.HomeDir +  dbDir)
+  p, _ := filepath.Abs(u.HomeDir +  configPath)
   db = p + "/syncer.db"
 
   err = os.MkdirAll(p, 0777)
   if err != nil {
     return err
   }
+
+  return nil
+}
+
+func authenticateGoogleDrive() error {
+  secret, err := os.ReadFile("secret.json")
+  if err != nil {
+    return err
+  }
+
+  config, err := google.ConfigFromJSON(secret, drive.DriveScope)
+  if err != nil {
+    return err
+  }
+
+  token, err := getTokenFromWeb(config)
+  if err != nil {
+    return err
+  }
+
+  u, err := user.Current()
+  if err != nil {
+    return err
+  }
+
+  p := filepath.Join(u.HomeDir + configPath + "token.json")
+
+  err = saveToken(p, token)
+  if err != nil {
+    return err
+  }
+
+  return nil
+}
+
+func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
+  authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+  exec.Command("xdg-open", authURL).Start()
+
+  code, err := getAuthorizationcodeFromRedirect()
+  if err != nil {
+    return nil, err
+  }
+
+  tok, err := config.Exchange(context.TODO(), code)
+  if err != nil {
+    return nil, err
+  }
+
+  return tok, nil
+}
+
+func getAuthorizationcodeFromRedirect() (string, error) {
+  listener, err := net.Listen("tcp", "127.0.0.1:3333")
+  if err != nil {
+    return "", err
+  }
+  defer listener.Close()
+
+  con, err := listener.Accept()
+  if err != nil {
+    fmt.Println("Failed to listen for the redirect url")
+    return "", err
+  }
+  defer con.Close()
+
+  tmp := make([]byte, 1024)
+  _, err = con.Read(tmp)
+  if err != nil {
+    return "", err
+  }
+
+  // Sanitize data, don´t know if needed
+  var data []byte
+  for i, v := range tmp  {
+    if (v == 0) {
+      data = tmp[0:i]
+      break
+    }
+  }
+
+  reader := bufio.NewReader(bytes.NewReader(data))
+  req, err := http.ReadRequest(reader)
+  if err != nil {
+    return "", err
+  }
+  defer req.Body.Close()
+  code := req.URL.Query().Get("code")
+
+  con.Write([]byte("Succes\r\nYou can close this browser window"))
+
+  return code, nil
+}
+
+func saveToken(path string, token *oauth2.Token) error {
+  file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+  if err != nil {
+    return err
+  }
+  defer file.Close() 
+  json.NewEncoder(file).Encode(token)
 
   return nil
 }

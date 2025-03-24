@@ -57,7 +57,11 @@ func handleCommand(command string, args ...string) {
 }
 
 func handleAuth() {
-  fmt.Println("Authenticating...")
+  // TODO: handle vendoring
+  err := config.Authenticate(config.GoogleDrive)
+  if err != nil {
+    fmt.Printf("Unable to authenticate for %v\n%v\n", config.GoogleDrive, err)
+  }
 }
 
 func handleStatus() {
@@ -71,21 +75,26 @@ func handleStatus() {
     fmt.Println("Syncer has \033[0;31mstopped\033[0;37m")
   }
 
-  fmt.Println()
   files, err := config.GetFiles()
   if err != nil {
     fmt.Println("Unable to list files")
   }
+
+  if len(files) > 0 {
+    fmt.Println()
+  }
+
   for _, f := range files{
     switch f.Status {
       case config.Error:
-        fmt.Printf("%v: \033[0;31m%v\033[0;37m\n", f.RemoteName, f.Status)
+        fmt.Printf("%v (%v): \033[0;31m%v\033[0;37m\n", f.RemoteName, f.Vendor, f.Status)
       case config.Synced:
-        fmt.Printf("%v: \033[0;32m%v\033[0;37m\n", f.RemoteName, f.Status)
+        fmt.Printf("%v (%v): \033[0;32m%v\033[0;37m\n", f.RemoteName, f.Vendor, f.Status)
       default:
         fmt.Printf("%v: Unknown\n", f.RemoteName)
     }
   }
+
   fmt.Println()
 }
 
@@ -122,14 +131,19 @@ func findPid(name string) ([]int, error) {
 
 func handleLs() {
   fmt.Println("Files being synced")
-  fmt.Println()
   files, err := config.GetFiles()
   if err != nil {
     fmt.Println("Unable to list files")
   }
-  for _, f := range files{
-    fmt.Printf("%v\n", f.RemoteName)
+
+  if len(files) > 0 {
+    fmt.Println()
   }
+
+  for _, f := range files{
+    fmt.Printf("%v (%v)\n", f.RemoteName, f.Vendor)
+  }
+
   fmt.Println()
 }
 
@@ -145,6 +159,8 @@ func handleAdd(args []string) {
   f := config.File{}
   f.RemoteName = remote
   f.LocalPath = local
+  // TODO: add flag for vendor choice
+  f.Vendor = config.GoogleDrive
 
   err := config.AddFile(f)
   if err != nil {
