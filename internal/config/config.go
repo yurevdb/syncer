@@ -9,28 +9,37 @@ import (
 )
 
 const (
-  db = "/home/yure/.config/syncer/syncer.db"
-  dbDir = "/home/yure/.config/syncer/"
+  db = "~/.config/syncer/syncer.db"
+  dbDir = "~/.config/syncer/"
 )
 
 type Status int
-
 const (
   Error Status = iota
   Synced
 )
-
 var statusString = map[Status]string{
   Error: "Error",
   Synced: "Synced",
 }
-
 func (status Status) String() string{
   return statusString[status]
 }
 
+type Vendor int
+const (
+  GoogleDrive Vendor = iota
+)
+var vendorString = map[Vendor]string{
+  GoogleDrive: "Google Drive",
+}
+func (vendor Vendor) String() string {
+  return vendorString[vendor]
+}
+
 type File = struct {
   Status Status
+  Vendor Vendor
   RemoteName string
   LocalPath string
 }
@@ -61,7 +70,7 @@ func GetFiles() ([]File, error) {
   }
   defer db.Close()
 
-  rows, err := db.Query("SELECT remotename, localpath, status FROM files")
+  rows, err := db.Query("SELECT remotename, localpath, status, vendor FROM files")
   if err != nil {
     return nil, err
   }
@@ -70,7 +79,8 @@ func GetFiles() ([]File, error) {
     var remotename string
     var localpath string
     var status Status
-    err = rows.Scan(&remotename, &localpath, &status)
+    var vendor Vendor
+    err = rows.Scan(&remotename, &localpath, &status, &vendor)
     if err != nil {
       continue
     }
@@ -78,6 +88,7 @@ func GetFiles() ([]File, error) {
     f.RemoteName = remotename
     f.LocalPath = localpath
     f.Status = status
+    f.Vendor = vendor
     files = append(files, f)
   }
 
@@ -91,12 +102,12 @@ func AddFile(file File) error {
   }
   defer db.Close()
 
-  stmt, err := db.Prepare("INSERT INTO files(remotename, localpath, status) VALUES (?, ?, ?)")
+  stmt, err := db.Prepare("INSERT INTO files(remotename, localpath, status, vendor) VALUES (?, ?, ?, ?)")
   if err != nil {
     return err
   }
   defer stmt.Close()
-  _, err = stmt.Exec(file.RemoteName, file.LocalPath, Error)
+  _, err = stmt.Exec(file.RemoteName, file.LocalPath, Error, file.Vendor)
   if err != nil {
     return err
   }
@@ -129,7 +140,8 @@ func createTables(db *sql.DB) error {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             remotename TEXT UNIQUE,
             localpath TEXT UNIQUE,
-            status INTEGER)`
+            status INTEGER,
+            vendor INTEGER)`
 
   _, err := db.Exec(query)
   if err != nil {

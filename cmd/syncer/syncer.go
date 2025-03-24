@@ -34,6 +34,7 @@ func main() {
 func handleCommand(command string, args ...string) {
   switch strings.ToLower(command) {
     case "auth":
+      handleAuth()
     case "status":
       handleStatus()
     case "start":
@@ -53,6 +54,10 @@ func handleCommand(command string, args ...string) {
     default:
       printGeneralHelp()
   }
+}
+
+func handleAuth() {
+  fmt.Println("Authenticating...")
 }
 
 func handleStatus() {
