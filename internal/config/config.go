@@ -2,7 +2,7 @@ package config
 
 import (
 	"database/sql"
-	"fmt"
+	_ "fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -11,9 +11,9 @@ import (
 )
 
 const (
-  db = "/.config/syncer/syncer.db"
   dbDir = "/.config/syncer/"
 )
+var db string
 
 type Status int
 const (
@@ -160,10 +160,9 @@ func ensureDatabasePathExists() error {
   }
 
   p, _ := filepath.Abs(u.HomeDir +  dbDir)
+  db = p + "/syncer.db"
 
-  fmt.Printf("path to db: %v\n", p)
-
-  err = os.MkdirAll(p, os.ModeDir)
+  err = os.MkdirAll(p, 0777)
   if err != nil {
     return err
   }
