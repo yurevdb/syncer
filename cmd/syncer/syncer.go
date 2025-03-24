@@ -141,7 +141,7 @@ func handleLs() {
   }
 
   for _, f := range files{
-    fmt.Printf("%v (%v)\n", f.RemoteName, f.Vendor)
+    fmt.Printf("%v (%v) => %v\n", f.RemoteName, f.Vendor, f.LocalPath)
   }
 
   fmt.Println()

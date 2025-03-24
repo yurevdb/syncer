@@ -19,67 +19,97 @@ import (
 
 func main() {
   ctx := context.Background()
-  secret, err := os.ReadFile("secret.json")
+
+  err := config.Init() 
   if err != nil {
-    log.Fatalf("Unable to read client secret file: %v", err)
+    log.Fatalf("%v", err)
   }
 
-  config, err := google.ConfigFromJSON(secret, drive.DriveScope)
+  files, err := config.GetFiles()
   if err != nil {
-    log.Fatalf("Unable to parse client secret file to config: %v", err)
+    log.Fatalf("%v", err)
   }
-  client, err := getClient(config)
+
+  for vendor, f := range groupByVendor(files) {
+    switch vendor {
+      case config.GoogleDrive:
+        handleGoogleDrive(f, ctx)
+    }
+  }
+}
+
+func handleGoogleDrive(files []config.File, ctx context.Context) {
+  if len(files) <= 0 {
+    return 
+  }
+
+  client, err := getClient()
   if err != nil {
-    log.Fatalf("Unable to parse client secret file to config: %v", err)
+    return
   }
 
   srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
   if err != nil {
-    log.Fatalf("Unable to retrieve Drive client: %v", err)
+    return
   }
 
-  // TODO: get this from config 
-  filename := "MainPasswords.kdbx"
+  for _, file := range files {
+    if file.Vendor != config.GoogleDrive {
+      continue
+    }
 
-  r, err := srv.Files.List().Fields("nextPageToken, files(id, name)").Do()
-  if err != nil {
-    log.Fatalf("Unable to retrieve files: %v", err)
-  }
+    r, err := srv.Files.List().Fields("files(id, name)").Do()
+    if err != nil {
+      continue
+    }
 
-  // Handle google drive
-  var id string
-  if len(r.Files) == 0 {
-    fmt.Println("No files found.")
-    os.Exit(1)
-  } else {
-    for _, file := range r.Files {
-      if (file.Name == filename) {
-        // TODO: use this to keep track of download needs
-        //file.ModifiedTime
-        id = file.Id
-        fmt.Printf("Found %v\n", file.Name)
-        break
+    // Handle google drive
+    var id string
+    if len(r.Files) == 0 {
+      continue
+    } else {
+      for _, f := range r.Files {
+        if (f.Name == file.RemoteName) {
+          // TODO: use this to keep track of download needs
+          //file.ModifiedTime
+          id = f.Id
+          break
+        }
       }
     }
-  }
 
-  res, err := srv.Files.Get(id).Download()
+    res, err := srv.Files.Get(id).Download()
+    if err != nil {
+      log.Fatalf("Unable to download the file")
+      fmt.Printf("%v\n", err)
+    }
+    defer res.Body.Close()
+
+    saveFile(res, file.LocalPath)
+  }
+}
+
+func saveFile(response *http.Response, path string) {
+  dir := filepath.Dir(path)
+  err := os.MkdirAll(dir, 0777)
   if err != nil {
-    log.Fatalf("Unable to download the file")
-    fmt.Printf("%v\n", err)
+    return 
   }
-  defer res.Body.Close()
 
-  destFile, err := os.OpenFile("./test/MainPasswords.kdbx", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+  destFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+
+  if err != nil {
+    return
+  }
+
   buffer := make([]byte, 32 * 1024)
   pos := 0
   for {
-    read, err := res.Body.Read(buffer)
+    read, err := response.Body.Read(buffer)
 
     if read > 0 {
       written, err := destFile.WriteAt(buffer, int64(pos))
       if err != nil {
-        log.Fatalf("Unable to write downloaded file to local file")
         break
       }
       pos += written
@@ -90,13 +120,36 @@ func main() {
         break
       }
 
-      log.Fatalf("Problem with downloading file")
       break
     }
   }
 }
 
-func getClient(c *oauth2.Config) (*http.Client, error) {
+func groupByVendor(files []config.File) map[config.Vendor][]config.File {
+  filesPerVendor := make(map[config.Vendor][]config.File)
+
+  for _, f := range files {
+    _, ok := filesPerVendor[f.Vendor]
+    if !ok {
+      filesPerVendor[f.Vendor] = make([]config.File, 0)
+    }
+    filesPerVendor[f.Vendor] = append(filesPerVendor[f.Vendor], f)
+  }
+
+  return filesPerVendor
+}
+
+func getClient() (*http.Client, error) {
+  secret, err := os.ReadFile("secret.json")
+  if err != nil {
+    return nil, err
+  }
+
+  c, err := google.ConfigFromJSON(secret, drive.DriveScope)
+  if err != nil {
+    log.Fatalf("Unable to parse client secret file to config: %v", err)
+  }
+
   configPath, err := config.GetConfigPath()
   if err != nil {
     return nil, err
