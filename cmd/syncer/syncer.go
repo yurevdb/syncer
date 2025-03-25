@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -21,6 +22,7 @@ func main() {
   if err != nil {
     fmt.Printf("Unable to initialize the configuration\n")
     fmt.Printf("%v\n", err)
+    os.Exit(1)
   }
 
   if len(os.Args) == 1 {
@@ -33,6 +35,8 @@ func main() {
 
 func handleCommand(command string, args ...string) {
   switch strings.ToLower(command) {
+    case "pull":
+    case "browse":
     case "auth":
       handleAuth()
     case "status":
@@ -148,13 +152,41 @@ func handleLs() {
 }
 
 func handleAdd(args []string) {
-  if len(args) < 2 {
+  if len(args) < 1 {
     fmt.Println("Arguments given are not compatible")
     fmt.Println("Use \"syncer help add\" to see what arguments to use")
     return
   }
   remote := args[0]
-  local := args[1]
+  // TODO: get vendor from flag
+  vendor := config.GoogleDrive
+
+  var local string
+  if len(args) > 1 {
+    local = args[1]
+  } else {
+    user, err := user.Current()
+    if err != nil {
+      fmt.Println("Unable to get user info")
+      return 
+    }
+
+    var vendorDir string 
+    switch vendor {
+      case config.GoogleDrive:
+        vendorDir = "google-drive"
+      default:
+        vendorDir = ""
+    }
+
+    path := filepath.Join(user.HomeDir, "syncer", vendorDir, remote)
+
+    local, err = filepath.Abs(path)
+    if err != nil {
+      fmt.Println("Unable to get absolute file path for the local file")
+      return
+    }
+  }
 
   f := config.File{}
   f.RemoteName = remote
@@ -193,8 +225,10 @@ func printGeneralHelp() {
   fmt.Println()
   fmt.Println("\tauth\tauthenticates to access the remote files")
   fmt.Println("\tstatus\tchecks the status")
+  fmt.Println("\tbrowse\tbrowse/list the remote vendor")
   fmt.Println("\tstart\tstarts the syncer daemon")
   fmt.Println("\tstop\tstops the syncer daemon")
+  fmt.Println("\tpull\tpulls the latest version of all files or a specific file")
   fmt.Println("\tls\tlists the synced files")
   fmt.Println("\tadd\tadds a file to be synced")
   fmt.Println("\trm\tremoves a file from syncing")
@@ -206,6 +240,20 @@ func printGeneralHelp() {
 
 func printCommandHelp(command string) {
   switch strings.ToLower(command) {
+    case "pull":
+      fmt.Println("Pulls the latest version for every file or a specific file from the vendor")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer pull")
+      fmt.Println()
+    case "browse":
+      fmt.Println("Browses or lists the remote file server")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer browse")
+      fmt.Println()
     case "auth":
       fmt.Println("Authenticates for syncing to the cloud file management")
       fmt.Println()
@@ -236,14 +284,20 @@ func printCommandHelp(command string) {
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
-      fmt.Println("\tsyncer add [remote name] [local path]")
+      fmt.Println("\tsyncer add <remote name> [local path]")
+      fmt.Println()
+      fmt.Println("Arguments:")
+      fmt.Println()
+      fmt.Println("\t- <remote name> should be a unique name together with the vendor. ")
+      fmt.Println("\t  I.e. every filename/filepath should be unique for the vendor. This is normal for any filesystem")
+      fmt.Println("\t- [local path] is an optional argument. The default is $HOME/syncer/$VENDORDIR/RemoteName")
       fmt.Println()
     case "rm":
       fmt.Println("Removes the given file from syncing")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
-      fmt.Println("\tsyncer rm [remote name]")
+      fmt.Println("\tsyncer rm <remote name>")
       fmt.Println()
     case "help":
       fmt.Println("Prints the help")

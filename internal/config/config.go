@@ -54,6 +54,7 @@ type File = struct {
   Vendor Vendor
   RemoteName string
   LocalPath string
+  LastPulled string
 }
 
 func Init() error {
@@ -82,25 +83,31 @@ func GetFiles() ([]File, error) {
   }
   defer db.Close()
 
-  rows, err := db.Query("SELECT remotename, localpath, status, vendor FROM files")
+  rows, err := db.Query("SELECT remotename, localpath, status, vendor, lastpulled FROM files")
   if err != nil {
     return nil, err
   }
   defer rows.Close()
+
   for rows.Next() {
     var remotename string
     var localpath string
     var status Status
     var vendor Vendor
-    err = rows.Scan(&remotename, &localpath, &status, &vendor)
+    var lastpulled string
+
+    err = rows.Scan(&remotename, &localpath, &status, &vendor, &lastpulled)
     if err != nil {
       continue
     }
+
     f := File{}
     f.RemoteName = remotename
     f.LocalPath = localpath
     f.Status = status
     f.Vendor = vendor
+    f.LastPulled = lastpulled
+
     files = append(files, f)
   }
 
@@ -119,8 +126,10 @@ func AddFile(file File) error {
     return err
   }
   defer stmt.Close()
+
   _, err = stmt.Exec(file.RemoteName, file.LocalPath, Error, file.Vendor)
   if err != nil {
+    fmt.Printf("Error: %v\n", err)
     return err
   }
 
@@ -176,10 +185,12 @@ func GetConfigPath() (string, error) {
 func createTables(db *sql.DB) error {
   query := `CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            remotename TEXT UNIQUE,
-            localpath TEXT UNIQUE,
-            status INTEGER,
-            vendor INTEGER)`
+            remotename TEXT NOT NULL,
+            localpath TEXT NOT NULL UNIQUE,
+            status INTEGER NOT NULL,
+            vendor INTEGER NOT NULL,
+            lastpulled DATETIME DEFAULT(DATETIME('1900-01-01 00:00:00')) NOT NULL,
+            UNIQUE(remotename, vendor))`
 
   _, err := db.Exec(query)
   if err != nil {

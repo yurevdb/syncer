@@ -3,18 +3,19 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
+
+	"syncer/internal/config"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
-  "syncer/internal/config"
 )
 
 func main() {
@@ -58,7 +59,7 @@ func handleGoogleDrive(files []config.File, ctx context.Context) {
       continue
     }
 
-    r, err := srv.Files.List().Fields("files(id, name)").Do()
+    r, err := srv.Files.List().Fields("files(name, id, lastModifyingUser, modifiedTime)").Do()
     if err != nil {
       continue
     }
@@ -69,19 +70,31 @@ func handleGoogleDrive(files []config.File, ctx context.Context) {
       continue
     } else {
       for _, f := range r.Files {
-        if (f.Name == file.RemoteName) {
-          // TODO: use this to keep track of download needs
-          //file.ModifiedTime
+        modifiedTime, err := time.Parse(time.RFC3339, f.ModifiedTime)
+        if err != nil {
+          continue
+        }
+        lastPulled, err := time.Parse(time.RFC3339, file.LastPulled)
+        if err != nil {
+          continue
+        }
+
+        isModifiedSinceLastPull := modifiedTime.Sub(lastPulled) > 0
+
+        if (f.Name == file.RemoteName && isModifiedSinceLastPull) {
           id = f.Id
           break
         }
       }
     }
 
+    if id == "" {
+      return
+    }
+
     res, err := srv.Files.Get(id).Download()
     if err != nil {
       log.Fatalf("Unable to download the file")
-      fmt.Printf("%v\n", err)
     }
     defer res.Body.Close()
 

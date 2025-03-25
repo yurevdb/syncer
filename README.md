@@ -20,6 +20,7 @@ Also nice to learn a bit of go.
     - [x] status
     - [ ] start
     - [ ] stop
+    - [ ] pull
     - [x] ls
     - [x] add
     - [x] rm
