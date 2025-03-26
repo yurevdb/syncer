@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"syncer/internal/cloud"
 	"syncer/internal/config"
 
 	"golang.org/x/oauth2"
@@ -33,13 +35,13 @@ func main() {
 
   for vendor, f := range groupByVendor(files) {
     switch vendor {
-      case config.GoogleDrive:
+      case cloud.GoogleDrive:
         handleGoogleDrive(f, ctx)
     }
   }
 }
 
-func handleGoogleDrive(files []config.File, ctx context.Context) {
+func handleGoogleDrive(files []cloud.File, ctx context.Context) {
   if len(files) <= 0 {
     return 
   }
@@ -55,7 +57,7 @@ func handleGoogleDrive(files []config.File, ctx context.Context) {
   }
 
   for _, file := range files {
-    if file.Vendor != config.GoogleDrive {
+    if file.Vendor != cloud.GoogleDrive {
       continue
     }
 
@@ -138,13 +140,13 @@ func saveFile(response *http.Response, path string) {
   }
 }
 
-func groupByVendor(files []config.File) map[config.Vendor][]config.File {
-  filesPerVendor := make(map[config.Vendor][]config.File)
+func groupByVendor(files []cloud.File) map[cloud.Vendor][]cloud.File {
+  filesPerVendor := make(map[cloud.Vendor][]cloud.File)
 
   for _, f := range files {
     _, ok := filesPerVendor[f.Vendor]
     if !ok {
-      filesPerVendor[f.Vendor] = make([]config.File, 0)
+      filesPerVendor[f.Vendor] = make([]cloud.File, 0)
     }
     filesPerVendor[f.Vendor] = append(filesPerVendor[f.Vendor], f)
   }
@@ -168,7 +170,7 @@ func getClient() (*http.Client, error) {
     return nil, err
   }
 
-  tokFile := filepath.Join(configPath, "token.json")
+  tokFile := filepath.Join(configPath, "google_token.json")
 
   file, err := os.Open(tokFile)
   if err != nil {

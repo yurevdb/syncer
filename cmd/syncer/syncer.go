@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"syncer/internal/cloud"
 	"syncer/internal/config"
 )
 
@@ -44,7 +46,7 @@ func handleCommand(command string, args ...string) {
     case "start":
     case "stop":
     case "ls":
-      handleLs()
+      handleLs(args)
     case "add":
       handleAdd(args)
     case "rm":
@@ -62,9 +64,11 @@ func handleCommand(command string, args ...string) {
 
 func handleAuth() {
   // TODO: handle vendoring
-  err := config.Authenticate(config.GoogleDrive)
+  vendor := cloud.GoogleDrive
+
+  err := vendor.Repository().Authenticate()
   if err != nil {
-    fmt.Printf("Unable to authenticate for %v\n%v\n", config.GoogleDrive, err)
+    log.Fatalf("Error authenticating google drive\n%v\n", err)
   }
 }
 
@@ -90,9 +94,9 @@ func handleStatus() {
 
   for _, f := range files{
     switch f.Status {
-      case config.Error:
+      case cloud.Error:
         fmt.Printf("%v (%v): \033[0;31m%v\033[0;37m\n", f.RemoteName, f.Vendor, f.Status)
-      case config.Synced:
+      case cloud.Synced:
         fmt.Printf("%v (%v): \033[0;32m%v\033[0;37m\n", f.RemoteName, f.Vendor, f.Status)
       default:
         fmt.Printf("%v: Unknown\n", f.RemoteName)
@@ -133,22 +137,36 @@ func findPid(name string) ([]int, error) {
   return ids, nil
 }
 
-func handleLs() {
-  fmt.Println("Files being synced")
-  files, err := config.GetFiles()
-  if err != nil {
-    fmt.Println("Unable to list files")
-  }
+func handleLs(args []string) {
+  if len(args) == 0 {
+    fmt.Println("Files being synced")
+    files, err := config.GetFiles()
+    if err != nil {
+      fmt.Println("Unable to list files")
+    }
 
-  if len(files) > 0 {
+    if len(files) > 0 {
+      fmt.Println()
+    }
+
+    for _, f := range files{
+      fmt.Printf("%v (%v) => %v\n", f.RemoteName, f.Vendor, f.LocalPath)
+    }
+
+    fmt.Println()
+  } else {
+    vendor := cloud.GoogleDrive
+
+    files, err := vendor.Repository().List() 
+    if err != nil {
+      log.Fatalf("Unable to get remote files from %v\n%v", vendor, err)
+    }
+    fmt.Printf("Files in %v\n\n", vendor)
+    for _, filename := range files {
+      fmt.Printf("%v\n", filename)
+    }
     fmt.Println()
   }
-
-  for _, f := range files{
-    fmt.Printf("%v (%v) => %v\n", f.RemoteName, f.Vendor, f.LocalPath)
-  }
-
-  fmt.Println()
 }
 
 func handleAdd(args []string) {
@@ -159,7 +177,7 @@ func handleAdd(args []string) {
   }
   remote := args[0]
   // TODO: get vendor from flag
-  vendor := config.GoogleDrive
+  vendor := cloud.GoogleDrive
 
   var local string
   if len(args) > 1 {
@@ -173,7 +191,7 @@ func handleAdd(args []string) {
 
     var vendorDir string 
     switch vendor {
-      case config.GoogleDrive:
+      case cloud.GoogleDrive:
         vendorDir = "google-drive"
       default:
         vendorDir = ""
@@ -188,11 +206,11 @@ func handleAdd(args []string) {
     }
   }
 
-  f := config.File{}
+  f := cloud.File{}
   f.RemoteName = remote
   f.LocalPath = local
   // TODO: add flag for vendor choice
-  f.Vendor = config.GoogleDrive
+  f.Vendor = cloud.GoogleDrive
 
   err := config.AddFile(f)
   if err != nil {
