@@ -1,4 +1,4 @@
-package cloud
+package internal
 
 import (
 	"os/user"
@@ -43,6 +43,7 @@ func (vendor Vendor) String() string {
 }
 
 type File = struct {
+  Id int
   Status Status
   Vendor Vendor
   RemoteName string

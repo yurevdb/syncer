@@ -1,4 +1,4 @@
-package config
+package internal
 
 import (
 	"database/sql"
@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-
-  "syncer/internal/cloud"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -35,8 +33,8 @@ func Init() error {
   return nil
 }
 
-func GetFiles() ([]cloud.File, error) {
-  files := make([]cloud.File, 0)
+func GetFiles() ([]File, error) {
+  files := make([]File, 0)
 
   db, err := sql.Open("sqlite3", db)
   if err != nil {
@@ -44,30 +42,39 @@ func GetFiles() ([]cloud.File, error) {
   }
   defer db.Close()
 
-  rows, err := db.Query("SELECT remotename, localpath, status, vendor, lastpulled FROM files")
+  rows, err := db.Query(`SELECT   id, 
+                                  remotename, 
+                                  localpath, 
+                                  status, 
+                                  vendor, 
+                                  lastpulled 
+                         FROM     files`)
   if err != nil {
     return nil, err
   }
   defer rows.Close()
 
   for rows.Next() {
+    var id int
     var remotename string
     var localpath string
-    var status cloud.Status
-    var vendor cloud.Vendor
+    var status Status
+    var vendor Vendor
     var lastpulled string
 
-    err = rows.Scan(&remotename, &localpath, &status, &vendor, &lastpulled)
+    err = rows.Scan(&id, &remotename, &localpath, &status, &vendor, &lastpulled)
     if err != nil {
       continue
     }
 
-    f := cloud.File{}
-    f.RemoteName = remotename
-    f.LocalPath = localpath
-    f.Status = status
-    f.Vendor = vendor
-    f.LastPulled = lastpulled
+    f := File{
+      Id: id,
+      RemoteName: remotename,
+      LocalPath: localpath,
+      Status: status,
+      Vendor: vendor,
+      LastPulled: lastpulled,
+    }
 
     files = append(files, f)
   }
@@ -75,7 +82,29 @@ func GetFiles() ([]cloud.File, error) {
   return files, nil
 }
 
-func AddFile(file cloud.File) error {
+func UpdateFile(file File) error {
+  db, err := sql.Open("sqlite3", db)
+  if err != nil {
+    return err
+  }
+  defer db.Close()
+
+  stmt, err := db.Prepare("UPDATE files SET status = ?, lastpulled = CURRENT_TIMESTAMP WHERE id = ?")
+  if err != nil {
+    return err
+  }
+  defer stmt.Close()
+
+  _, err = stmt.Exec(file.Status, file.Id)
+  if err != nil {
+    fmt.Printf("Error: %v\n", err)
+    return err
+  }
+
+  return nil
+}
+
+func AddFile(file File) error {
   db, err := sql.Open("sqlite3", db)
   if err != nil {
     return err
@@ -88,7 +117,7 @@ func AddFile(file cloud.File) error {
   }
   defer stmt.Close()
 
-  _, err = stmt.Exec(file.RemoteName, file.LocalPath, cloud.Error, file.Vendor)
+  _, err = stmt.Exec(file.RemoteName, file.LocalPath, Error, file.Vendor)
   if err != nil {
     fmt.Printf("Error: %v\n", err)
     return err
@@ -117,17 +146,6 @@ func RemoveFile(remoteName string) error {
   return nil
 }
 
-func GetConfigPath() (string, error) {
-  u, err := user.Current()
-  if err != nil {
-    return "", err
-  }
-
-  p, _ := filepath.Abs(filepath.Join(u.HomeDir, configPath))
-
-  return p, nil
-}
-
 func createTables(db *sql.DB) error {
   query := `CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -135,7 +153,7 @@ func createTables(db *sql.DB) error {
             localpath TEXT NOT NULL UNIQUE,
             status INTEGER NOT NULL,
             vendor INTEGER NOT NULL,
-            lastpulled DATETIME DEFAULT(DATETIME('1900-01-01 00:00:00')) NOT NULL,
+            lastpulled DATETIME DEFAULT(CURRENT_TIMESTAMP) NOT NULL,
             UNIQUE(remotename, vendor))`
 
   _, err := db.Exec(query)

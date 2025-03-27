@@ -1,4 +1,4 @@
-package cloud
+package internal
 
 import (
 	"bufio"
@@ -77,7 +77,8 @@ func (g Google) Pull(file *File) error {
       return err
     }
     
-    // TODO: update file, lastpulled & status
+    file.Status = Synced
+    UpdateFile(*file)
   }
   return nil
 }
@@ -116,7 +117,8 @@ func (g Google) PullAll(files []File) error {
         return err
       }
       
-      // TODO: update file, lastpulled & status
+      lf.Status = Synced
+      UpdateFile(lf)
     }
   }
 
