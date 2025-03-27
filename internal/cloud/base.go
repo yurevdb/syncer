@@ -52,7 +52,7 @@ type File = struct {
 
 type Repository interface {
   Pull(file *File) error
-  PullAll(files *[]File) error
+  PullAll(files []File) error
   Push(file *File) error
   List() ([]string, error)
   Authenticate() error

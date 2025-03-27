@@ -82,7 +82,43 @@ func (g Google) Pull(file *File) error {
   return nil
 }
 
-func (g Google) PullAll(files *[]File) error {
+func (g Google) PullAll(files []File) error {
+  client, err := getClient(&g)
+  if err != nil {
+    return err
+  }
+
+  srv, err := drive.NewService(context.TODO(), option.WithHTTPClient(client))
+  if err != nil {
+    return err
+  }
+
+  r, err := srv.Files.List().Do()
+  if err != nil {
+    return err
+  }
+
+  for _, lf := range files {
+    for _, rf := range r.Items {
+
+      if (rf.OriginalFilename != lf.RemoteName) {
+        continue
+      }
+
+      res, err := srv.Files.Get(rf.Id).Download()
+      if err != nil {
+        return err
+      }
+      defer res.Body.Close()
+
+      err = saveFile(res, lf.LocalPath)
+      if err != nil {
+        return err
+      }
+      
+      // TODO: update file, lastpulled & status
+    }
+  }
 
   return nil
 }

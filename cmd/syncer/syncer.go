@@ -74,11 +74,9 @@ func handlePull() {
   }
 
   repo := vendor.Repository()
-  for _, f := range files {
-    err := repo.Pull(&f)
-    if err != nil {
-      fmt.Printf("Unable to pull %v\nError: %v\n", f.RemoteName, err)
-    }
+  err = repo.PullAll(files)
+  if err != nil {
+    fmt.Printf("Unable to pull files from %v\n%v\n", vendor, err)
   }
 }
 
@@ -177,7 +175,7 @@ func handleBrowse() {
 }
 
 func handleLs() {
-  fmt.Println("Files being synced")
+  fmt.Println("Files being watched")
   files, err := config.GetFiles()
   if err != nil {
     fmt.Println("Unable to list files")
@@ -256,7 +254,7 @@ func handleRm(args []string) {
 }
 
 func printGeneralHelp() {
-  fmt.Println("Syncer is a cloud file system sync tool to keep remote and local files synced")
+  fmt.Println("Syncer is a cloud file system sync tool to keep remote and local files synchronised")
   fmt.Println()
   fmt.Println("Usage:")
   fmt.Println()
@@ -270,8 +268,8 @@ func printGeneralHelp() {
   fmt.Println("\tstart\tstarts the syncer daemon")
   fmt.Println("\tstop\tstops the syncer daemon")
   fmt.Println("\tpull\tpulls the latest version of all files or a specific file")
-  fmt.Println("\tls\tlists the synced files")
-  fmt.Println("\tadd\tadds a file to be synced")
+  fmt.Println("\tls\tlists the watched files")
+  fmt.Println("\tadd\tadds a file to be watched")
   fmt.Println("\trm\tremoves a file from syncing")
   fmt.Println("\thelp\tprints the help")
   fmt.Println()
@@ -299,7 +297,7 @@ func printCommandHelp(command string) {
       fmt.Println()
       fmt.Println("\tsyncer auth")
     case "status":
-      fmt.Println("Prints the current status of the daemon and files synced")
+      fmt.Println("Prints the current status of the daemon and files being watched")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
@@ -309,13 +307,13 @@ func printCommandHelp(command string) {
     case "stop":
       fmt.Println("Stops the syncer daemon")
     case "ls":
-      fmt.Println("Prints the files being synced")
+      fmt.Println("Prints the files being watched")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
       fmt.Println("\tsyncer ls")
     case "add":
-      fmt.Println("Adds the given file to be synced")
+      fmt.Println("Adds the given file to be watched")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
