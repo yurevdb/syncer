@@ -103,6 +103,14 @@ func handleStatus() {
     fmt.Println("Syncer has \033[0;31mstopped\033[0;37m")
   }
 
+  fmt.Println()
+  if cloud.GoogleDrive.Repository().IsAuthenticated() {
+    fmt.Printf("Google Drive is \033[0;32mauthenticated\033[0;37m\n")
+  } else {
+    fmt.Printf("Google Drive is \033[0;31mnot authenticated\033[0;37m\n")
+  }
+
+
   files, err := config.GetFiles()
   if err != nil {
     fmt.Println("Unable to list files")

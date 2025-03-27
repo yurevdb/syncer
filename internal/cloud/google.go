@@ -82,6 +82,11 @@ func (g Google) Pull(file *File) error {
   return nil
 }
 
+func (g Google) PullAll(files *[]File) error {
+
+  return nil
+}
+
 func saveFile(response *http.Response, path string) error {
   dir := filepath.Dir(path)
   err := os.MkdirAll(dir, 0777)
@@ -271,4 +276,13 @@ func saveToken(path string, token *oauth2.Token) error {
   json.NewEncoder(file).Encode(token)
 
   return nil
+}
+
+func (g Google) IsAuthenticated() bool {
+  _, err := os.Open(g.TokenPath)
+  if err != nil {
+    return false
+  }
+
+  return true
 }
