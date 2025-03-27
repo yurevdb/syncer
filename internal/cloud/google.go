@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -21,6 +23,98 @@ type Google struct {
 }
 
 func (g Google) Pull(file *File) error {
+  client, err := getClient(&g)
+  if err != nil {
+    return err
+  }
+
+  srv, err := drive.NewService(context.TODO(), option.WithHTTPClient(client))
+  if err != nil {
+    return err
+  }
+
+  r, err := srv.Files.List().Do()
+  if err != nil {
+    return err
+  }
+
+  //var id string
+  for _, f := range r.Items {
+    // Checks if remote file was updated since last pull
+
+    //modifiedTime, err := time.Parse(time.RFC3339, f.ModifiedDate)
+    //if err != nil {
+    //  continue
+    //}
+    //lastPulled, err := time.Parse(time.RFC3339, file.LastPulled)
+    //if err != nil {
+    //  continue
+    //}
+
+    //isModifiedSinceLastPull := modifiedTime.Sub(lastPulled) > 0
+
+    //if (f.OriginalFilename == file.RemoteName && isModifiedSinceLastPull) {
+    //  id = f.Id
+    //  break
+    //}
+
+    //if id == "" {
+    //  return nil
+    //}
+
+    if (f.OriginalFilename != file.RemoteName) {
+      continue
+    }
+
+    res, err := srv.Files.Get(f.Id).Download()
+    if err != nil {
+      return err
+    }
+    defer res.Body.Close()
+
+    err = saveFile(res, file.LocalPath)
+    if err != nil {
+      return err
+    }
+    
+    // TODO: update file, lastpulled & status
+  }
+  return nil
+}
+
+func saveFile(response *http.Response, path string) error {
+  dir := filepath.Dir(path)
+  err := os.MkdirAll(dir, 0777)
+  if err != nil {
+    return err
+  }
+
+  destFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+
+  if err != nil {
+    return err
+  }
+
+  buffer := make([]byte, 32 * 1024)
+  pos := 0
+  for {
+    read, err := response.Body.Read(buffer)
+
+    if read > 0 {
+      written, err := destFile.WriteAt(buffer, int64(pos))
+      if err != nil {
+        break
+      }
+      pos += written
+    }
+
+    if err != nil {
+      if err == io.EOF {
+        break
+      }
+      break
+    }
+  }
 
   return nil
 }

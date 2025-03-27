@@ -38,7 +38,9 @@ func main() {
 func handleCommand(command string, args ...string) {
   switch strings.ToLower(command) {
     case "pull":
+      handlePull()
     case "browse":
+      handleBrowse()
     case "auth":
       handleAuth()
     case "status":
@@ -46,7 +48,7 @@ func handleCommand(command string, args ...string) {
     case "start":
     case "stop":
     case "ls":
-      handleLs(args)
+      handleLs()
     case "add":
       handleAdd(args)
     case "rm":
@@ -59,6 +61,24 @@ func handleCommand(command string, args ...string) {
       }
     default:
       printGeneralHelp()
+  }
+}
+
+func handlePull() {
+  // TODO: handle vendoring
+  vendor := cloud.GoogleDrive
+
+  files, err := config.GetFiles()
+  if err != nil {
+    log.Fatalf("Unable to get the watched files\n%v\n", err)
+  }
+
+  repo := vendor.Repository()
+  for _, f := range files {
+    err := repo.Pull(&f)
+    if err != nil {
+      fmt.Printf("Unable to pull %v\nError: %v\n", f.RemoteName, err)
+    }
   }
 }
 
@@ -102,8 +122,6 @@ func handleStatus() {
         fmt.Printf("%v: Unknown\n", f.RemoteName)
     }
   }
-
-  fmt.Println()
 }
 
 func findPid(name string) ([]int, error) {
@@ -137,35 +155,32 @@ func findPid(name string) ([]int, error) {
   return ids, nil
 }
 
-func handleLs(args []string) {
-  if len(args) == 0 {
-    fmt.Println("Files being synced")
-    files, err := config.GetFiles()
-    if err != nil {
-      fmt.Println("Unable to list files")
-    }
+func handleBrowse() {
+  vendor := cloud.GoogleDrive
 
-    if len(files) > 0 {
-      fmt.Println()
-    }
+  files, err := vendor.Repository().List() 
+  if err != nil {
+    log.Fatalf("Unable to get remote files from %v\n%v", vendor, err)
+  }
+  fmt.Printf("Files in %v\n\n", vendor)
+  for _, filename := range files {
+    fmt.Printf("%v\n", filename)
+  }
+}
 
-    for _, f := range files{
-      fmt.Printf("%v (%v) => %v\n", f.RemoteName, f.Vendor, f.LocalPath)
-    }
+func handleLs() {
+  fmt.Println("Files being synced")
+  files, err := config.GetFiles()
+  if err != nil {
+    fmt.Println("Unable to list files")
+  }
 
+  if len(files) > 0 {
     fmt.Println()
-  } else {
-    vendor := cloud.GoogleDrive
+  }
 
-    files, err := vendor.Repository().List() 
-    if err != nil {
-      log.Fatalf("Unable to get remote files from %v\n%v", vendor, err)
-    }
-    fmt.Printf("Files in %v\n\n", vendor)
-    for _, filename := range files {
-      fmt.Printf("%v\n", filename)
-    }
-    fmt.Println()
+  for _, f := range files{
+    fmt.Printf("%v (%v) => %v\n", f.RemoteName, f.Vendor, f.LocalPath)
   }
 }
 
@@ -253,7 +268,6 @@ func printGeneralHelp() {
   fmt.Println("\thelp\tprints the help")
   fmt.Println()
   fmt.Println("Use \"syncer help <command>\" for more information about a command")
-  fmt.Println()
 }
 
 func printCommandHelp(command string) {
@@ -264,28 +278,24 @@ func printCommandHelp(command string) {
       fmt.Println("Usage:")
       fmt.Println()
       fmt.Println("\tsyncer pull")
-      fmt.Println()
     case "browse":
       fmt.Println("Browses or lists the remote file server")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
-      fmt.Println("\tsyncer browse")
-      fmt.Println()
+      fmt.Println("\tsyncer browse [vendor]")
     case "auth":
       fmt.Println("Authenticates for syncing to the cloud file management")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
       fmt.Println("\tsyncer auth")
-      fmt.Println()
     case "status":
       fmt.Println("Prints the current status of the daemon and files synced")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
       fmt.Println("\tsyncer status")
-      fmt.Println()
     case "start":
       fmt.Println("Starts the syncer daemon")
     case "stop":
@@ -296,7 +306,6 @@ func printCommandHelp(command string) {
       fmt.Println("Usage:")
       fmt.Println()
       fmt.Println("\tsyncer ls")
-      fmt.Println()
     case "add":
       fmt.Println("Adds the given file to be synced")
       fmt.Println()
@@ -309,14 +318,12 @@ func printCommandHelp(command string) {
       fmt.Println("\t- <remote name> should be a unique name together with the vendor. ")
       fmt.Println("\t  I.e. every filename/filepath should be unique for the vendor. This is normal for any filesystem")
       fmt.Println("\t- [local path] is an optional argument. The default is $HOME/syncer/$VENDORDIR/RemoteName")
-      fmt.Println()
     case "rm":
       fmt.Println("Removes the given file from syncing")
       fmt.Println()
       fmt.Println("Usage:")
       fmt.Println()
       fmt.Println("\tsyncer rm <remote name>")
-      fmt.Println()
     case "help":
       fmt.Println("Prints the help")
     default:
