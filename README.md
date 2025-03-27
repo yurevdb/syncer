@@ -1,11 +1,12 @@
 # SYNCER
 
-A basic google drive sync tool.
-Made for me to sync my keepass database.
+A basic syncrhonisation tool for remote file systems like Google Drive, Dropbox, etc.
+It is made with with a whitelist for files to be synchronised.
+This is useful sometimes, but not for everyone.
 
-Also nice to learn a bit of go.
+Made for me, by me to syncrhonise my keepass database.
 
-# TODO
+## TODO
 
 - [x] Open authorication url automatically in the default browser
 - [x] There seems to be a loopback for the code, either handle it or disable it (hanled it)
@@ -17,10 +18,12 @@ Also nice to learn a bit of go.
     - [ ] After changes in the file, push to drive
 - [ ] Create CLI application
     - [x] auth
+    - [x] browse
     - [x] status
-    - [ ] start
-    - [ ] stop
-    - [ ] pull
+    - [ ] start daemon
+    - [ ] stop daemon
+    - [x] pull
+    - [ ] push
     - [x] ls
     - [x] add
     - [x] rm
