@@ -23,7 +23,7 @@ Made for me, by me to syncrhonise my keepass database.
     - [ ] start daemon
     - [ ] stop daemon
     - [x] pull
-    - [ ] push
+    - [x] push
     - [x] ls
     - [x] add
     - [x] rm

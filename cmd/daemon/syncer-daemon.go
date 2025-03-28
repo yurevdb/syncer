@@ -28,6 +28,7 @@ func main() {
 func handleGoogleDrive(files []internal.File) {
   for _, f := range files {
     internal.GoogleDrive.Repository().Pull(&f)
+    internal.GoogleDrive.Repository().Push(&f)
   }
 }
 

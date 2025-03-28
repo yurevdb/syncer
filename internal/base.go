@@ -55,6 +55,7 @@ type Repository interface {
   Pull(file *File) error
   PullAll(files []File) error
   Push(file *File) error
+  PushAll(files []File) error
   List() ([]string, error)
   Authenticate() error
   IsAuthenticated() bool

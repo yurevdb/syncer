@@ -38,6 +38,8 @@ func handleCommand(command string, args ...string) {
   switch strings.ToLower(command) {
     case "pull":
       handlePull()
+    case "push":
+      handlePush()
     case "browse":
       handleBrowse()
     case "auth":
@@ -60,6 +62,22 @@ func handleCommand(command string, args ...string) {
       }
     default:
       printGeneralHelp()
+  }
+}
+
+func handlePush() {
+  // TODO: handle vendoring
+  vendor := internal.GoogleDrive
+
+  files, err := internal.GetFiles()
+  if err != nil {
+    log.Fatalf("Unable to get the watched files\n%v\n", err)
+  }
+
+  repo := vendor.Repository()
+  err = repo.PushAll(files)
+  if err != nil {
+    fmt.Printf("Unable to pull files from %v\n%v\n", vendor, err)
   }
 }
 

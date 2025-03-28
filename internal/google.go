@@ -5,12 +5,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -38,30 +40,7 @@ func (g Google) Pull(file *File) error {
     return err
   }
 
-  //var id string
   for _, f := range r.Items {
-    // Checks if remote file was updated since last pull
-
-    //modifiedTime, err := time.Parse(time.RFC3339, f.ModifiedDate)
-    //if err != nil {
-    //  continue
-    //}
-    //lastPulled, err := time.Parse(time.RFC3339, file.LastPulled)
-    //if err != nil {
-    //  continue
-    //}
-
-    //isModifiedSinceLastPull := modifiedTime.Sub(lastPulled) > 0
-
-    //if (f.OriginalFilename == file.RemoteName && isModifiedSinceLastPull) {
-    //  id = f.Id
-    //  break
-    //}
-
-    //if id == "" {
-    //  return nil
-    //}
-
     if (f.OriginalFilename != file.RemoteName) {
       continue
     }
@@ -163,6 +142,89 @@ func saveFile(response *http.Response, path string) error {
 }
 
 func (g Google) Push(file *File) error {
+  client, err := getClient(&g)
+  if err != nil {
+    return err
+  }
+
+  srv, err := drive.NewService(context.TODO(), option.WithHTTPClient(client))
+  if err != nil {
+    return err
+  }
+
+  r, err := srv.Files.List().Do()
+  if err != nil {
+    return err
+  }
+
+  var rf_id string = ""
+  for _, rf := range r.Items {
+    if rf.OriginalFilename != file.RemoteName {
+      continue
+    }
+    rf_id = rf.Id
+  }
+
+  if rf_id == "" {
+    // Insert file
+    lf, err := os.Open(file.LocalPath)
+    if err != nil {
+      return err
+    }
+    defer lf.Close()
+
+    f := &drive.File{
+      Title: file.RemoteName,
+    }
+
+    _, err = srv.Files.Insert(f).Media(lf).Do()
+    if err != nil {
+      return err
+    }
+  } else {
+    // Update file
+    // Insert file
+    lf, err := os.Open(file.LocalPath)
+    if err != nil {
+      return err
+    }
+    defer lf.Close()
+
+    rf, err := srv.Files.Get(rf_id).Do()
+    if err != nil {
+      return err
+    }
+
+    _, err = srv.Files.Update(rf.Id, rf).Media(lf).Do()
+    if err != nil {
+      return err
+    }
+
+    file.Status = Synced
+    err = UpdateFile(*file)
+    if err != nil {
+      fmt.Printf("Update File: %v\n", err)
+      return err
+    }
+  }
+
+  return nil
+}
+
+func (g Google) PushAll(files []File) error {
+  errors := make([]string, 0)
+
+  for _, lf := range files {
+    err := g.Push(&lf)
+    if err != nil {
+      errors = append(errors, err.Error())
+    }
+  }
+
+  // Hanlde Errors
+  if len(errors) > 0 {
+    return fmt.Errorf(strings.Join(errors, "\n"))
+  }
 
   return nil
 }
