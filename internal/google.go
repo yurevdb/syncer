@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+  "errors"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -212,18 +213,18 @@ func (g Google) Push(file *File) error {
 }
 
 func (g Google) PushAll(files []File) error {
-  errors := make([]string, 0)
+  errs := make([]string, 0)
 
   for _, lf := range files {
     err := g.Push(&lf)
     if err != nil {
-      errors = append(errors, err.Error())
+      errs = append(errs, err.Error())
     }
   }
 
   // Hanlde Errors
-  if len(errors) > 0 {
-    return fmt.Errorf(strings.Join(errors, "\n"))
+  if len(errs) > 0 {
+    return errors.New(strings.Join(errs, "\n"))
   }
 
   return nil
