@@ -1,4 +1,4 @@
-# SYNCER
+# Syncer
 
 A basic syncrhonisation tool for remote file systems like Google Drive, Dropbox, etc.
 It is made with with a whitelist for files to be synchronised.
@@ -7,10 +7,10 @@ This is useful sometimes, but not for everyone.
 Made for me, by me to syncrhonise my keepass database.
 
 # Build
- 1 Clone or download the source files.
- 2 Build the syncer and syncerd files.
- 3 Copy the files into the /usr/bin directory.
- 4 Optional - Added "nohup syncerd" to the cron
+ 1. Clone or download the source files.
+ 2. Build the syncer and syncerd files.
+ 3. Copy the files into the /usr/bin directory.
+ 4. Optional - Added "nohup syncerd" to the cron
 
 # TODO
 
