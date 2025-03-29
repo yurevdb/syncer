@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,12 +15,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-  "errors"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v2"
 	"google.golang.org/api/option"
+)
+
+const (
+  SECRET = "eyJpbnN0YWxsZWQiOnsiY2xpZW50X2lkIjoiOTM0OTc2MzcyNTM5LXVrc3ZocnFtcW1mN2E4YXFyMHZqOXQ2cjhvaWp0bWR0LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6Im15LXByb2plY3QtMTUwNjA4OTg2Mjk3MyIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtcjBCQ2NxSXdTWElFeXFRNU12TkUxeUlMY1lGNSIsInJlZGlyZWN0X3VyaXMiOlsiaHR0cDovL2xvY2FsaG9zdDozMzMzIl19fQ=="
 )
 
 type Google struct {
@@ -260,12 +265,12 @@ func (g Google) List() ([]string, error) {
 }
 
 func getClient(g *Google) (*http.Client, error) {
-  secret, err := os.ReadFile("secret.json")
+  data, err := base64.RawStdEncoding.DecodeString(SECRET)
   if err != nil {
     return nil, err
   }
 
-  c, err := google.ConfigFromJSON(secret, drive.DriveScope)
+  c, err := google.ConfigFromJSON(data, drive.DriveScope)
   if err != nil {
     return nil, err
   }
