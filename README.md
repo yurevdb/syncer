@@ -16,12 +16,12 @@ Made for me, by me to syncrhonise my keepass database.
     - [ ] Pull from google drive on startup
     - [ ] Check for changes on a timed interval, and if modified pull it
     - [ ] After changes in the file, push to drive
-- [ ] Create CLI application
+- [x] Create CLI application
     - [x] auth
     - [x] browse
     - [x] status
-    - [ ] start daemon
-    - [ ] stop daemon
+    - [x] start daemon
+    - [x] stop daemon
     - [x] pull
     - [x] push
     - [x] ls

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"syncer/internal"
 )
@@ -12,15 +13,19 @@ func main() {
     log.Fatalf("%v", err)
   }
 
-  files, err := internal.GetFiles()
-  if err != nil {
-    log.Fatalf("%v", err)
-  }
+  for {
+    time.Sleep(time.Second * 60 * 15)
 
-  for vendor, f := range groupByVendor(files) {
-    switch vendor {
+    files, err := internal.GetFiles()
+    if err != nil {
+      continue
+    }
+
+    for vendor, f := range groupByVendor(files) {
+      switch vendor {
       case internal.GoogleDrive:
         handleGoogleDrive(f)
+      }
     }
   }
 }

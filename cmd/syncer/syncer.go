@@ -4,13 +4,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
-  "syncer/internal"
+	"syncer/internal"
+)
+
+const (
+  DAEMON = "syncerd"
 )
 
 func main() {
@@ -47,7 +52,9 @@ func handleCommand(command string, args ...string) {
     case "status":
       handleStatus()
     case "start":
+      handleStart()
     case "stop":
+      handleStop()
     case "ls":
       handleLs()
     case "add":
@@ -62,6 +69,31 @@ func handleCommand(command string, args ...string) {
       }
     default:
       printGeneralHelp()
+  }
+}
+
+func handleStart() {
+  cmd := exec.Command("nohup", DAEMON)
+  err := cmd.Start()
+  if err != nil {
+    log.Fatalf("Unable to start syncer\n%v\n", err)
+  }
+  fmt.Println("Started the syncer daemon")
+}
+
+func handleStop() {
+  pids, err := findPid(DAEMON)
+  if err != nil {
+    fmt.Printf("Unable to find the process for syncer daemon\n%v\n", err)
+  }
+
+  for _, pid := range pids {
+    cmd := exec.Command("kill", strconv.Itoa(pid))
+    err := cmd.Run()
+    if err != nil {
+      log.Fatalf("Unable to stop syncer\n%v\n", err)
+    }
+    fmt.Println("Stopped the syncer daemon")
   }
 }
 
@@ -108,7 +140,7 @@ func handleAuth() {
 }
 
 func handleStatus() {
-  ids, err := findPid("syncer-daemon")
+  ids, err := findPid("syncerd")
   if err != nil {
     fmt.Println("Unable to check if the daemon is running")
   }

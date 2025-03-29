@@ -106,6 +106,7 @@ func (g Google) PullAll(files []File) error {
 }
 
 func saveFile(response *http.Response, path string) error {
+  // TODO: bug with writing to much data to the file
   dir := filepath.Dir(path)
   err := os.MkdirAll(dir, 0777)
   if err != nil {
