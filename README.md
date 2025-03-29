@@ -6,7 +6,13 @@ This is useful sometimes, but not for everyone.
 
 Made for me, by me to syncrhonise my keepass database.
 
-## TODO
+# Build
+ 1 Clone or download the source files.
+ 2 Build the syncer and syncerd files.
+ 3 Copy the files into the /usr/bin directory.
+ 4 Optional - Added "nohup syncerd" to the cron
+
+# TODO
 
 - [x] Open authorication url automatically in the default browser
 - [x] There seems to be a loopback for the code, either handle it or disable it (hanled it)
