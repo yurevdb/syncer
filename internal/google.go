@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -31,6 +32,13 @@ type Google struct {
 }
 
 func (g Google) Pull(file *File) error {
+  // Set status to error, so only a valid pull gets the status 'Synced'
+  file.Status = Error
+  err := UpdateFile(*file)
+  if err != nil {
+    return err
+  }
+
   client, err := getClient(&g)
   if err != nil {
     return err
@@ -51,6 +59,20 @@ func (g Google) Pull(file *File) error {
       continue
     }
 
+    rt, err := time.Parse(time.RFC3339, f.ModifiedDate)
+    if err != nil {
+      return err
+    }
+    lt, err := time.Parse(time.RFC3339, file.LastPulled)
+    if err != nil {
+      return err
+    }
+
+    modified := rt.Sub(lt) > 0 // Checking if remote is modified
+    if !modified {
+      continue
+    }
+
     res, err := srv.Files.Get(f.Id).Download()
     if err != nil {
       return err
@@ -63,7 +85,10 @@ func (g Google) Pull(file *File) error {
     }
     
     file.Status = Synced
-    UpdateFile(*file)
+    err = UpdateFile(*file)
+    if err != nil {
+      return err
+    }
   }
   return nil
 }
@@ -85,9 +110,30 @@ func (g Google) PullAll(files []File) error {
   }
 
   for _, lf := range files {
+    // Set status to error, so only a valid pull gets the status 'Synced'
+    lf.Status = Error
+    err := UpdateFile(lf)
+    if err != nil {
+      return err
+    }
+
     for _, rf := range r.Items {
 
       if (rf.OriginalFilename != lf.RemoteName) {
+        continue
+      }
+
+      rt, err := time.Parse(time.RFC3339, rf.ModifiedDate)
+      if err != nil {
+        return err
+      }
+      lt, err := time.Parse(time.RFC3339, lf.LastPulled)
+      if err != nil {
+        return err
+      }
+
+      modified := rt.Sub(lt) > 0 // Checking if remote is modified
+      if !modified {
         continue
       }
 

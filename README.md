@@ -19,7 +19,7 @@ Made for me, by me to syncrhonise my keepass database.
 - [x] Download a file from filename
 - [x] Create config file for files to sync (config via sqlite)
 - [ ] Create syncing:
-    - [ ] Pull from google drive on startup
+    - [x] Pull from google drive on startup
     - [ ] Check for changes on a timed interval, and if modified pull it
     - [ ] After changes in the file, push to drive
 - [x] Create CLI application
