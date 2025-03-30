@@ -36,6 +36,8 @@ func main() {
     os.Exit(0)
   }
 
+  // TODO: parse arguments and flags 
+
   handleCommand(os.Args[1], os.Args[2:]...)
 }
 
@@ -276,15 +278,21 @@ func handleAdd(args []string) {
     }
   }
 
-  f := internal.File{}
-  f.RemoteName = remote
-  f.LocalPath = local
-  // TODO: add flag for vendor choice
-  f.Vendor = internal.GoogleDrive
-
-  err := internal.AddFile(f)
+  id, err := vendor.Repository().GetRemoteId(remote) 
   if err != nil {
-    fmt.Println("Unable to add file")
+    log.Fatalf("Unable to find remote file")
+  }
+
+  f := internal.File{
+    RemoteId: id,
+    RemoteName: remote,
+    LocalPath: local,
+    Vendor: internal.GoogleDrive,
+  }
+
+  err = internal.AddFile(f)
+  if err != nil {
+    log.Fatalf("Unable to add file")
   }
 }
 
@@ -317,6 +325,7 @@ func printGeneralHelp() {
   fmt.Println("\tstart\tstarts the syncer daemon")
   fmt.Println("\tstop\tstops the syncer daemon")
   fmt.Println("\tpull\tpulls the latest version of all files or a specific file")
+  fmt.Println("\tpush\tpushes the local changes the the remote repository")
   fmt.Println("\tls\tlists the watched files")
   fmt.Println("\tadd\tadds a file to be watched")
   fmt.Println("\trm\tremoves a file from syncing")
@@ -333,6 +342,12 @@ func printCommandHelp(command string) {
       fmt.Println("Usage:")
       fmt.Println()
       fmt.Println("\tsyncer pull")
+    case "push":
+      fmt.Println("Pushes the local version to the remote repository for the vendor")
+      fmt.Println()
+      fmt.Println("Usage:")
+      fmt.Println()
+      fmt.Println("\tsyncer push")
     case "browse":
       fmt.Println("Browses or lists the remote file server")
       fmt.Println()

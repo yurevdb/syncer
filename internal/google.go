@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -49,108 +48,63 @@ func (g Google) Pull(file *File) error {
     return err
   }
 
-  r, err := srv.Files.List().Do()
+  f, err := srv.Files.Get(file.RemoteId).Do()
   if err != nil {
     return err
   }
 
-  for _, f := range r.Items {
-    if (f.OriginalFilename != file.RemoteName) {
-      continue
-    }
+  rt, err := time.Parse(time.RFC3339, f.ModifiedDate)
+  if err != nil {
+    return err
+  }
+  lt, err := time.Parse(time.RFC3339, file.LastPulled)
+  if err != nil {
+    return err
+  }
 
-    rt, err := time.Parse(time.RFC3339, f.ModifiedDate)
-    if err != nil {
-      return err
-    }
-    lt, err := time.Parse(time.RFC3339, file.LastPulled)
-    if err != nil {
-      return err
-    }
-
-    modified := rt.Sub(lt) > 0 // Checking if remote is modified
-    if !modified {
-      continue
-    }
-
-    res, err := srv.Files.Get(f.Id).Download()
-    if err != nil {
-      return err
-    }
-    defer res.Body.Close()
-
-    err = saveFile(res, file.LocalPath)
-    if err != nil {
-      return err
-    }
-    
+  modified := rt.Sub(lt) > 0 // Checking if remote is modified
+  if !modified {
     file.Status = Synced
     err = UpdateFile(*file)
     if err != nil {
       return err
     }
+    return nil
   }
+
+  res, err := srv.Files.Get(f.Id).Download()
+  if err != nil {
+    return err
+  }
+  defer res.Body.Close()
+
+  err = saveFile(res, file.LocalPath)
+  if err != nil {
+    return err
+  }
+  
+  file.Status = Synced
+  err = UpdateFile(*file)
+  if err != nil {
+    return err
+  }
+
   return nil
 }
 
 func (g Google) PullAll(files []File) error {
-  client, err := getClient(&g)
-  if err != nil {
-    return err
-  }
-
-  srv, err := drive.NewService(context.TODO(), option.WithHTTPClient(client))
-  if err != nil {
-    return err
-  }
-
-  r, err := srv.Files.List().Do()
-  if err != nil {
-    return err
-  }
+  errs := make([]string, 0)
 
   for _, lf := range files {
-    // Set status to error, so only a valid pull gets the status 'Synced'
-    lf.Status = Error
-    err := UpdateFile(lf)
+    err := g.Pull(&lf)
     if err != nil {
-      return err
+      errs = append(errs, err.Error())
     }
+  }
 
-    for _, rf := range r.Items {
-
-      if (rf.OriginalFilename != lf.RemoteName) {
-        continue
-      }
-
-      rt, err := time.Parse(time.RFC3339, rf.ModifiedDate)
-      if err != nil {
-        return err
-      }
-      lt, err := time.Parse(time.RFC3339, lf.LastPulled)
-      if err != nil {
-        return err
-      }
-
-      modified := rt.Sub(lt) > 0 // Checking if remote is modified
-      if !modified {
-        continue
-      }
-
-      res, err := srv.Files.Get(rf.Id).Download()
-      if err != nil {
-        return err
-      }
-      defer res.Body.Close()
-
-      err = saveFile(res, lf.LocalPath)
-      if err != nil {
-        return err
-      }
-      
-      lf.Status = Synced
-      UpdateFile(lf)
-    }
+  // Hanlde Errors
+  if len(errs) > 0 {
+    return errors.New(strings.Join(errs, "\n"))
   }
 
   return nil
@@ -195,6 +149,12 @@ func saveFile(response *http.Response, path string) error {
 }
 
 func (g Google) Push(file *File) error {
+  file.Status = Error
+  err := UpdateFile(*file)
+  if err != nil {
+    return err
+  }
+
   client, err := getClient(&g)
   if err != nil {
     return err
@@ -205,60 +165,27 @@ func (g Google) Push(file *File) error {
     return err
   }
 
-  r, err := srv.Files.List().Do()
+  // Update file
+  lf, err := os.Open(file.LocalPath)
+  if err != nil {
+    return err
+  }
+  defer lf.Close()
+
+  rf, err := srv.Files.Get(file.RemoteId).Do()
   if err != nil {
     return err
   }
 
-  var rf_id string = ""
-  for _, rf := range r.Items {
-    if rf.OriginalFilename != file.RemoteName {
-      continue
-    }
-    rf_id = rf.Id
+  _, err = srv.Files.Update(rf.Id, rf).Media(lf).Do()
+  if err != nil {
+    return err
   }
 
-  if rf_id == "" {
-    // Insert file
-    lf, err := os.Open(file.LocalPath)
-    if err != nil {
-      return err
-    }
-    defer lf.Close()
-
-    f := &drive.File{
-      Title: file.RemoteName,
-    }
-
-    _, err = srv.Files.Insert(f).Media(lf).Do()
-    if err != nil {
-      return err
-    }
-  } else {
-    // Update file
-    // Insert file
-    lf, err := os.Open(file.LocalPath)
-    if err != nil {
-      return err
-    }
-    defer lf.Close()
-
-    rf, err := srv.Files.Get(rf_id).Do()
-    if err != nil {
-      return err
-    }
-
-    _, err = srv.Files.Update(rf.Id, rf).Media(lf).Do()
-    if err != nil {
-      return err
-    }
-
-    file.Status = Synced
-    err = UpdateFile(*file)
-    if err != nil {
-      fmt.Printf("Update File: %v\n", err)
-      return err
-    }
+  file.Status = Synced
+  err = UpdateFile(*file)
+  if err != nil {
+    return err
   }
 
   return nil
@@ -438,4 +365,35 @@ func (g Google) IsAuthenticated() bool {
   }
 
   return true
+}
+
+func (g Google) GetRemoteId(name string) (string, error) {
+  client, err := getClient(&g)
+  if err != nil {
+    return "", err
+  }
+
+  srv, err := drive.NewService(context.TODO(), option.WithHTTPClient(client))
+  if err != nil {
+    return "", err
+  }
+
+  r, err := srv.Files.List().Do()
+  if err != nil {
+    return "", err
+  }
+
+  var id string = ""
+  for _, rf := range r.Items {
+    if rf.OriginalFilename != name {
+      continue
+    }
+    id = rf.Id
+  }
+
+  if id == "" {
+    return "", errors.New("File not found")
+  }
+
+  return id, nil
 }

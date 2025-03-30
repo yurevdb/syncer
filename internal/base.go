@@ -44,6 +44,7 @@ func (vendor Vendor) String() string {
 
 type File = struct {
   Id int
+  RemoteId string
   Status Status
   Vendor Vendor
   RemoteName string
@@ -56,6 +57,7 @@ type Repository interface {
   PullAll(files []File) error
   Push(file *File) error
   PushAll(files []File) error
+  GetRemoteId(name string) (string, error)
   List() ([]string, error)
   Authenticate() error
   IsAuthenticated() bool

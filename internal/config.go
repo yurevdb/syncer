@@ -15,7 +15,6 @@ const (
 )
 var db string
 
-
 func Init() error {
   ensureDatabasePathExists()
 
@@ -42,7 +41,8 @@ func GetFiles() ([]File, error) {
   }
   defer db.Close()
 
-  rows, err := db.Query(`SELECT   id, 
+  rows, err := db.Query(`SELECT   id,
+                                  remoteid,
                                   remotename, 
                                   localpath, 
                                   status, 
@@ -56,19 +56,21 @@ func GetFiles() ([]File, error) {
 
   for rows.Next() {
     var id int
+    var remoteid string
     var remotename string
     var localpath string
     var status Status
     var vendor Vendor
     var lastpulled string
 
-    err = rows.Scan(&id, &remotename, &localpath, &status, &vendor, &lastpulled)
+    err = rows.Scan(&id, &remoteid, &remotename, &localpath, &status, &vendor, &lastpulled)
     if err != nil {
       continue
     }
 
     f := File{
       Id: id,
+      RemoteId: remoteid,
       RemoteName: remotename,
       LocalPath: localpath,
       Status: status,
@@ -111,13 +113,14 @@ func AddFile(file File) error {
   }
   defer db.Close()
 
-  stmt, err := db.Prepare("INSERT INTO files(remotename, localpath, status, vendor) VALUES (?, ?, ?, ?)")
+  stmt, err := db.Prepare(`INSERT INTO files(remoteid, remotename, localpath, status, vendor, lastpulled) 
+                           VALUES (?, ?, ?, ?, ?, '2000-01-01 00:00:00')`)
   if err != nil {
     return err
   }
   defer stmt.Close()
 
-  _, err = stmt.Exec(file.RemoteName, file.LocalPath, Error, file.Vendor)
+  _, err = stmt.Exec(file.RemoteId, file.RemoteName, file.LocalPath, Error, file.Vendor)
   if err != nil {
     fmt.Printf("Error: %v\n", err)
     return err
@@ -149,11 +152,12 @@ func RemoveFile(remoteName string) error {
 func createTables(db *sql.DB) error {
   query := `CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            remoteid TEXT NOT NULL,
             remotename TEXT NOT NULL,
             localpath TEXT NOT NULL UNIQUE,
             status INTEGER NOT NULL,
             vendor INTEGER NOT NULL,
-            lastpulled DATETIME DEFAULT(CURRENT_TIMESTAMP) NOT NULL,
+            lastpulled DATETIME NOT NULL,
             UNIQUE(remotename, vendor))`
 
   _, err := db.Exec(query)
@@ -180,4 +184,3 @@ func ensureDatabasePathExists() error {
 
   return nil
 }
-
