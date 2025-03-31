@@ -21,6 +21,7 @@ func (status Status) String() string{
 type Vendor int
 const (
   GoogleDrive Vendor = iota
+  ICloud
 )
 var vendorString = map[Vendor]string{
   GoogleDrive: "Google Drive",

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -36,21 +37,22 @@ func main() {
     os.Exit(0)
   }
 
-  // TODO: parse arguments and flags 
+  // TODO: handle by flag
+  var vendor internal.Vendor = internal.GoogleDrive
 
-  handleCommand(os.Args[1], os.Args[2:]...)
+  handleCommand(os.Args[1], vendor, os.Args[2:]..., )
 }
 
-func handleCommand(command string, args ...string) {
+func handleCommand(command string, vendor internal.Vendor, args ...string) {
   switch strings.ToLower(command) {
     case "pull":
-      handlePull()
+      handlePull(vendor)
     case "push":
-      handlePush()
+      handlePush(vendor)
     case "browse":
-      handleBrowse()
+      handleBrowse(vendor)
     case "auth":
-      handleAuth()
+      handleAuth(vendor)
     case "status":
       handleStatus()
     case "start":
@@ -60,7 +62,7 @@ func handleCommand(command string, args ...string) {
     case "ls":
       handleLs()
     case "add":
-      handleAdd(args)
+      handleAdd(vendor, args)
     case "rm":
       handleRm(args)
     case "help":
@@ -99,10 +101,7 @@ func handleStop() {
   }
 }
 
-func handlePush() {
-  // TODO: handle vendoring
-  vendor := internal.GoogleDrive
-
+func handlePush(vendor internal.Vendor) {
   files, err := internal.GetFiles()
   if err != nil {
     log.Fatalf("Unable to get the watched files\n%v\n", err)
@@ -115,10 +114,7 @@ func handlePush() {
   }
 }
 
-func handlePull() {
-  // TODO: handle vendoring
-  vendor := internal.GoogleDrive
-
+func handlePull(vendor internal.Vendor) {
   files, err := internal.GetFiles()
   if err != nil {
     log.Fatalf("Unable to get the watched files\n%v\n", err)
@@ -131,10 +127,7 @@ func handlePull() {
   }
 }
 
-func handleAuth() {
-  // TODO: handle vendoring
-  vendor := internal.GoogleDrive
-
+func handleAuth(vendor internal.Vendor) {
   err := vendor.Repository().Authenticate()
   if err != nil {
     log.Fatalf("Error authenticating google drive\n%v\n", err)
@@ -212,9 +205,7 @@ func findPid(name string) ([]int, error) {
   return ids, nil
 }
 
-func handleBrowse() {
-  vendor := internal.GoogleDrive
-
+func handleBrowse(vendor internal.Vendor) {
   files, err := vendor.Repository().List() 
   if err != nil {
     log.Fatalf("Unable to get remote files from %v\n%v", vendor, err)
@@ -241,15 +232,13 @@ func handleLs() {
   }
 }
 
-func handleAdd(args []string) {
+func handleAdd(vendor internal.Vendor, args []string) {
   if len(args) < 1 {
     fmt.Println("Arguments given are not compatible")
     fmt.Println("Use \"syncer help add\" to see what arguments to use")
     return
   }
   remote := args[0]
-  // TODO: get vendor from flag
-  vendor := internal.GoogleDrive
 
   var local string
   if len(args) > 1 {
